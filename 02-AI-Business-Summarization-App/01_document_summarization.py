@@ -56,10 +56,23 @@ pprint(response['output_text'])
 # 2.0 EXPANDING WITH PROMPT TEMPLATES
 
 prompt_template = """
-Write a concise summary of the following:
+Write a business report from the following earnings call transcript:
 {text}
 
-Use 3 to 7 numbered bullet points to describe key points.
+Use the following Markdown format:
+# Insert Descriptive Report Title
+
+## Earnings Call Summary
+Use 3 to 7 numbered bullet points
+
+## Important Financials
+Describe the most important financials discussed during the call. Use 3 to 5 numbered bullet points.
+
+## Key Business Risks
+Describe any key business risks discussed on the call. Use 3 to 5 numbered bullets.
+
+## Conclusions
+Conclude with any overaching business actions that the company is pursuing that may have a positive or negative implications and what those implications are. 
 """
 
 prompt = PromptTemplate(

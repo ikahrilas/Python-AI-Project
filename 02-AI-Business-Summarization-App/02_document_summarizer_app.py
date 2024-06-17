@@ -17,14 +17,38 @@ from langchain.chains.combine_documents.stuff import StuffDocumentsChain
 from langchain.chains.summarize import load_summarize_chain
 
 import streamlit as st
+import subprocess
+import shutil
 import os
 from tempfile import NamedTemporaryFile
 
 # Load API Key
 OPENAI_API_KEY = yaml.safe_load(open('credentials.yml'))['openai']
+MODEL = "gpt-3.5-turbo"
+
+# generate PDF function
+def generate_pdf_with_quarto(markdown_text):
+    with NamedTemporaryFile(delete = False, suffix = ".qmd", mode = "w") as md_file:
+        md_file.write(markdown_text)
+        markdown_path = md_file.name
+    
+    pdf_file_path = markdown_path.replace(".qmd", ".pdf")
+    
+    # use quarto command line instead of python for more complex rendering
+    subprocess.run(["quarto", "render", markdown_path, "--to", "pdf"], check = True)
+    
+    os.remove(markdown_path)
+    return pdf_file_path
+    
+# generate move pdf to downloads function
+def move_file_to_downloads(pdf_file_path):
+    downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
+    destinations_path = os.path.join(downloads_path, os.path.basename(pdf_file_path))
+    shutil.move(pdf_file_path, destinations_path)
+    return destinations_path
 
 # 1.0 LOAD AND SUMMARIZE FUNCTION
-def load_and_summarize(file, use_template = False):
+def load_and_summarize(file):
     
     with NamedTemporaryFile(delete = False, suffix = ".pdf") as tmp:
         tmp.write(file.getvalue())
@@ -39,33 +63,37 @@ def load_and_summarize(file, use_template = False):
             model = "gpt-3.5-turbo",
             temperature = 0
         )
-        
-        if use_template: 
-            # bullets 
-            prompt_template = """
-            Write a concise summary of the following:
-            {text}
+    
+        prompt_template = """
+        Write a business report from the following earnings call transcript:
+        {text}
 
-            Use 3 to 7 numbered bullet points to describe key points.
-            """
+        Use the following Markdown format:
+        # Insert Descriptive Report Title
 
-            prompt = PromptTemplate(
-                template = prompt_template,
-                input_variables = ["text"]
-            )
+        ## Earnings Call Summary
+        Use 3 to 7 numbered bullet points
 
-            llm_chain = LLMChain(prompt = prompt, llm = model)
+        ## Important Financials
+        Describe the most important financials discussed during the call. Use 3 to 5 numbered bullet points.
 
-            stuff_chain = StuffDocumentsChain(llm_chain = llm_chain, document_variable_name = "text")
+        ## Key Business Risks
+        Describe any key business risks discussed on the call. Use 3 to 5 numbered bullets.
 
-            response = stuff_chain.invoke(docs)
-        else:
-            # no bullets
-            summarizer_chain = load_summarize_chain(
-                llm = model,
-                chain_type = "stuff"
-            )
-            response = summarizer_chain.invoke(docs)
+        ## Conclusions
+        Conclude with any overaching business actions that the company is pursuing that may have a positive or negative implications and what those implications are. 
+        """
+
+        prompt = PromptTemplate(
+            template = prompt_template,
+            input_variables = ["text"]
+        )
+
+        llm_chain = LLMChain(prompt = prompt, llm = model)
+
+        stuff_chain = StuffDocumentsChain(llm_chain = llm_chain, document_variable_name = "text")
+
+        response = stuff_chain.invoke(docs)
         
     finally:
         os.remove(file_path)
@@ -73,25 +101,31 @@ def load_and_summarize(file, use_template = False):
     return response['output_text']
 
 # 2.0 STREAMLIT INTERFACE
+st.set_page_config(page_title = "Earnings Call Transcript Summarizer", layout = "wide", page_icon = "📄")
 st.title("PDF Earnings Call Summarizer")
-st.subheader("Upload the PDF Document:")
+col1, col2 = st.columns(2)
 
-uploaded_file = st.file_uploader("Choose a file", type = "pdf")
-
-if uploaded_file is not None:
-    
-    use_template = st.checkbox("Use Numbered Bullets? If not, a paragraph will be returned.")
-    
-    if st.button("Summarize Document"):
-        with st.spinner("Summarizing Document..."):
-            
-            summary = load_and_summarize(uploaded_file, use_template)
-            
-            st.subheader("Summarizer Results:")
-            st.markdown(summary)
+with col1:
+    st.subheader("Upload the PDF Document:")
+    uploaded_file = st.file_uploader("Choose a file", type = "pdf")
+    if uploaded_file:
+        summarize_flag = st.button("Summarize Document", key = "summarize_button")
         
-else:
-    st.write("No file uploaded. Please upload a PDF file to summarize.")
+    if uploaded_file and summarize_flag:
+        with col2:
+            with st.spinner("Summarizing Document..."):
+                summary = load_and_summarize(uploaded_file)
+                st.subheader("Summarizer Results:")
+                st.markdown(summary)
+                
+                pdf_file = generate_pdf_with_quarto(summary)
+                download_path = move_file_to_downloads(pdf_file)
+                st.markdown(f"PDF downloaded to your Downloads folder: {download_path}.")
+                
+        
+    else:
+        with col2:
+            st.write("No file uploaded. Please upload a PDF file to summarize.")
 
 # CONCLUSIONS:
 #  1. WE CAN SEE HOW APPLICATIONS LIKE STREAMLIT ARE A NATURAL INTERFACE TO AUTOMATING THE LLM TASKS
