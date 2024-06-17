@@ -59,7 +59,7 @@ prompt_template = """
 Write a concise summary of the following:
 {text}
 
-Write a 5 sentence summary of the document like a pirate.
+Use 3 to 7 numbered bullet points to describe key points.
 """
 
 prompt = PromptTemplate(
