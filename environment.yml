@@ -59,6 +59,7 @@ dependencies:
       - quarto==0.1.0 # Make sure to download quarto CLI at https://quarto.org/docs/get-started/
       - sqlalchemy==2.0.29
       # - sqlite==3.41.2
+      - ollama==0.2.0
      
 
 

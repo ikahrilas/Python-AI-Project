@@ -82,6 +82,9 @@ def load_and_summarize(file):
 
         ## Conclusions
         Conclude with any overaching business actions that the company is pursuing that may have a positive or negative implications and what those implications are. 
+        
+        ## Extra
+        Add an additional summary of the earnings call 
         """
 
         prompt = PromptTemplate(
